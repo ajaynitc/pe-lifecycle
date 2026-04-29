@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Assisted Performance Testing — PE LifeCycle</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      --border-radius-md: 8px;
+      --border-radius-lg: 12px;
+      --border-radius-xl: 16px;
+    }
+    /* Light mode */
+    :root {
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #f7f6f2;
+      --color-background-tertiary: #f0ede6;
+      --color-background-info: #e6f1fb;
+      --color-background-success: #eaf3de;
+      --color-background-warning: #faeeda;
+      --color-background-danger: #fcebeb;
+      --color-text-primary: #1a1a18;
+      --color-text-secondary: #6b6a65;
+      --color-text-tertiary: #9c9a92;
+      --color-text-info: #0c447c;
+      --color-text-success: #27500a;
+      --color-text-warning: #633806;
+      --color-text-danger: #791f1f;
+      --color-border-tertiary: rgba(30,30,24,0.12);
+      --color-border-secondary: rgba(30,30,24,0.22);
+      --color-border-primary: rgba(30,30,24,0.35);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --color-background-primary: #1c1c1a;
+        --color-background-secondary: #252522;
+        --color-background-tertiary: #2e2e2b;
+        --color-background-info: #042c53;
+        --color-background-success: #173404;
+        --color-background-warning: #412402;
+        --color-background-danger: #501313;
+        --color-text-primary: #e8e6df;
+        --color-text-secondary: #9c9a92;
+        --color-text-tertiary: #6b6a65;
+        --color-text-info: #85b7eb;
+        --color-text-success: #97c459;
+        --color-text-warning: #ef9f27;
+        --color-text-danger: #f09595;
+        --color-border-tertiary: rgba(240,236,222,0.1);
+        --color-border-secondary: rgba(240,236,222,0.2);
+        --color-border-primary: rgba(240,236,222,0.32);
+      }
+    }
+    html, body { height: 100%; background: var(--color-background-tertiary); font-family: var(--font-sans); }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 20px 12px; min-height: 100vh; }
+    .page-header { width: 100%; max-width: 1100px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .page-logo { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+    .page-version { font-size: 11px; color: var(--color-text-secondary); background: var(--color-background-secondary); border: 0.5px solid var(--color-border-secondary); padding: 2px 8px; border-radius: 20px; }
+    .page-gh { margin-left: auto; font-size: 11.5px; color: var(--color-text-secondary); text-decoration: none; display: flex; align-items: center; gap: 5px; padding: 4px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-secondary); transition: all .15s; }
+    .page-gh:hover { color: var(--color-text-primary); border-color: var(--color-border-primary); }
+    #app { width: 100%; max-width: 1100px; display: flex; flex-direction: column; height: calc(100vh - 80px); min-height: 600px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; background: var(--color-background-primary); }
+    /* ── top bar ── */
+    #top-bar { padding: 10px 16px; border-bottom: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    #app-title { font-size: 13.5px; font-weight: 500; color: var(--color-text-primary); }
+    #tdiv { width: 1px; height: 14px; background: var(--color-border-secondary); }
+    #app-sub { font-size: 11.5px; color: var(--color-text-secondary); }
+    #conn-pill { margin-left: auto; font-size: 11px; padding: 3px 9px; border-radius: 20px; cursor: pointer; border: 0.5px solid transparent; transition: all .15s; display: flex; align-items: center; gap: 5px; user-select: none; }
+    #conn-pill.connected { color: var(--color-text-success); background: var(--color-background-success); }
+    #conn-pill.disconnected { color: var(--color-text-secondary); background: var(--color-background-secondary); border-color: var(--color-border-secondary); }
+    #conn-pill.testing { color: var(--color-text-warning); background: var(--color-background-warning); }
+    .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    #settings-btn { padding: 5px 9px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-secondary); cursor: pointer; font-size: 12px; font-family: var(--font-sans); transition: all .15s; display: flex; align-items: center; gap: 5px; }
+    #settings-btn:hover, #settings-btn.active { background: var(--color-background-primary); color: var(--color-text-primary); border-color: var(--color-border-primary); }
+    /* ── main layout ── */
+    #main { display: flex; flex: 1; overflow: hidden; }
+    /* ── sidebar ── */
+    #sidebar { width: 200px; border-right: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; background: var(--color-background-secondary); flex-shrink: 0; }
+    #sb-hdr { padding: 12px 13px 8px; font-size: 11px; font-weight: 500; color: var(--color-text-secondary); letter-spacing: .06em; text-transform: uppercase; }
+    .abtn { display: flex; align-items: center; gap: 9px; padding: 8px 11px; cursor: pointer; border: none; background: transparent; width: calc(100% - 10px); margin: 1px 5px; text-align: left; border-radius: 7px; transition: background .15s; font-family: var(--font-sans); }
+    .abtn:hover { background: var(--color-background-primary); }
+    .abtn.active { background: var(--color-background-primary); border: 0.5px solid var(--color-border-secondary); }
+    .adot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .albl { font-size: 12.5px; color: var(--color-text-primary); font-weight: 400; line-height: 1.3; }
+    .asub { font-size: 11px; color: var(--color-text-secondary); margin-top: 1px; }
+    #sb-foot { margin-top: auto; padding: 11px 13px; border-top: 0.5px solid var(--color-border-tertiary); font-size: 11px; color: var(--color-text-secondary); }
+    /* ── settings panel ── */
+    #chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+    #settings-panel { flex-shrink: 0; border-bottom: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); overflow: hidden; max-height: 0; transition: max-height .28s ease; }
+    #settings-panel.open { max-height: 340px; }
+    .sp-inner { padding: 16px 20px; }
+    .sp-label { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 7px; display: block; }
+    .sp-row { display: flex; align-items: center; gap: 9px; }
+    .sp-input { flex: 1; font-size: 12.5px; padding: 8px 11px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); font-family: var(--font-mono); outline: none; }
+    .sp-input:focus { border-color: var(--color-border-primary); }
+    .sp-btn { padding: 8px 13px; font-size: 12px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); cursor: pointer; white-space: nowrap; font-family: var(--font-sans); transition: all .15s; }
+    .sp-btn:hover { background: var(--color-background-secondary); }
+    .sp-btn.primary { background: #E6F1FB; border-color: #85B7EB; color: #0C447C; }
+    .sp-btn.primary:hover { background: #B5D4F4; }
+    .sp-btn.danger { background: #FCEBEB; border-color: #F09595; color: #791F1F; }
+    .sp-btn.danger:hover { background: #F7C1C1; }
+    #test-result { font-size: 12px; padding: 8px 11px; border-radius: var(--border-radius-md); margin-top: 9px; display: none; line-height: 1.5; }
+    #test-result.ok { background: #EAF3DE; color: #27500A; border: 0.5px solid #97C459; }
+    #test-result.err { background: #FCEBEB; color: #791F1F; border: 0.5px solid #F09595; }
+    #test-result.testing { background: #FAEEDA; color: #633806; border: 0.5px solid #FAC775; }
+    .sp-divider { border: none; border-top: 0.5px solid var(--color-border-tertiary); margin: 14px 0; }
+    .sp-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .sp-meta-item { display: flex; flex-direction: column; gap: 3px; }
+    .sp-meta-label { font-size: 11px; color: var(--color-text-secondary); }
+    .sp-meta-val { font-size: 12px; color: var(--color-text-primary); font-family: var(--font-mono); }
+    /* ── chat header ── */
+    #ch-hdr { padding: 11px 18px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+    #ch-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    #ch-name { font-size: 13.5px; font-weight: 500; color: var(--color-text-primary); }
+    #ch-phase { font-size: 11.5px; color: var(--color-text-secondary); margin-left: 5px; }
+    #ch-step { font-size: 11.5px; color: var(--color-text-secondary); margin-left: auto; }
+    /* ── messages ── */
+    #messages { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+    .msg { display: flex; flex-direction: column; max-width: 86%; }
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.agent { align-self: flex-start; align-items: flex-start; }
+    .mbubble { padding: 9px 13px; border-radius: var(--border-radius-lg); font-size: 13.5px; line-height: 1.55; }
+    .msg.user .mbubble { background: var(--color-background-info); color: var(--color-text-primary); border-bottom-right-radius: 4px; }
+    .msg.agent .mbubble { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); color: var(--color-text-primary); border-bottom-left-radius: 4px; }
+    .msender { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; padding: 0 2px; }
+    .qas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .qab { font-size: 12px; padding: 5px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: 20px; background: var(--color-background-primary); color: var(--color-text-secondary); cursor: pointer; font-family: var(--font-sans); transition: all .15s; }
+    .qab:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+    /* ── HAR recording card ── */
+    .rec-card { margin-top: 8px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-lg); background: var(--color-background-primary); overflow: hidden; }
+    .rec-card-hdr { padding: 9px 14px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 9px; }
+    .rec-card-title { font-size: 12.5px; font-weight: 500; color: var(--color-text-primary); }
+    .rbadge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; margin-left: auto; }
+    .rbadge.idle { background: #F1EFE8; color: #5F5E5A; }
+    .rbadge.run2 { background: #FAEEDA; color: #633806; }
+    .rbadge.ready { background: #EAF3DE; color: #3B6D11; }
+    .rec-instructions { padding: 10px 14px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+    .rec-inst-row { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 6px; }
+    .rec-inst-row:last-child { margin-bottom: 0; }
+    .rec-inst-num { width: 20px; height: 20px; border-radius: 50%; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-secondary); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; color: var(--color-text-secondary); flex-shrink: 0; margin-top: 1px; }
+    .rec-inst-num.done { background: #EAF3DE; border-color: #97C459; color: #3B6D11; }
+    .rec-inst-text { font-size: 13px; color: var(--color-text-primary); line-height: 1.4; }
+    .rec-inst-hint { font-size: 11.5px; color: var(--color-text-secondary); }
+    .rec-slots { display: flex; gap: 10px; padding: 10px 14px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+    .har-slot { flex: 1; border: 0.5px dashed var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; min-height: 64px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: all .15s; }
+    .har-slot:hover { border-color: var(--color-border-primary); background: var(--color-background-secondary); }
+    .har-slot.filled { border-style: solid; border-color: #97C459; background: #EAF3DE; cursor: default; }
+    .har-slot.filled:hover { background: #C0DD97; }
+    .har-slot.active-drop { border-color: #378ADD; background: #E6F1FB; }
+    .hs-label { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); }
+    .hs-label.filled { color: #3B6D11; }
+    .hs-filename { font-size: 12.5px; font-weight: 500; color: #27500A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hs-meta { font-size: 11px; color: #3B6D11; }
+    .hs-empty { font-size: 11.5px; color: var(--color-text-secondary); margin-top: 3px; }
+    .hs-remove { margin-top: auto; font-size: 11px; color: #A32D2D; background: none; border: none; padding: 0; cursor: pointer; text-align: left; font-family: var(--font-sans); }
+    .hs-remove:hover { text-decoration: underline; }
+    .rec-actions { padding: 10px 14px; display: flex; align-items: center; gap: 12px; }
+    .rec-go-btn { padding: 7px 18px; font-size: 12.5px; font-weight: 500; border-radius: var(--border-radius-md); border: 0.5px solid #97C459; background: #EAF3DE; color: #27500A; cursor: pointer; font-family: var(--font-sans); transition: all .15s; }
+    .rec-go-btn:hover:not(:disabled) { background: #C0DD97; }
+    .rec-go-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .rec-hint { font-size: 11.5px; color: var(--color-text-secondary); line-height: 1.4; }
+    /* ── upload tray ── */
+    #upload-tray { border-top: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); padding: 8px 18px; flex-shrink: 0; display: none; }
+    #upload-tray.vis { display: block; }
+    #dz { flex: 1; border: 0.5px dashed var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 7px 13px; display: flex; align-items: center; gap: 9px; cursor: pointer; background: var(--color-background-primary); transition: all .15s; }
+    #dz:hover, #dz.over { border-color: var(--color-border-primary); background: var(--color-background-info); }
+    #fi { display: none; }
+    #chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+    .chip { display: flex; align-items: center; gap: 5px; padding: 3px 9px 3px 7px; border: 0.5px solid var(--color-border-secondary); border-radius: 20px; background: var(--color-background-primary); font-size: 12px; }
+    .cico { width: 15px; height: 15px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 500; flex-shrink: 0; }
+    .cj { background: #E1F5EE; color: #085041; } .ch { background: #E6F1FB; color: #0C447C; } .cx { background: #FAEEDA; color: #633806; } .ct { background: #F1EFE8; color: #444441; } .co { background: #EEEDFE; color: #3C3489; }
+    .cname { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-primary); }
+    .csz { color: var(--color-text-secondary); font-size: 11px; }
+    .crm { cursor: pointer; color: var(--color-text-secondary); font-size: 14px; border: none; background: none; padding: 0; font-family: var(--font-sans); }
+    .crm:hover { color: var(--color-text-primary); }
+    /* ── input area ── */
+    #input-area { padding: 11px 18px 14px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 9px; align-items: flex-end; flex-shrink: 0; }
+    #att-btn { padding: 9px 11px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-secondary); cursor: pointer; transition: all .15s; flex-shrink: 0; }
+    #att-btn:hover { background: var(--color-background-secondary); }
+    #att-btn.hf { border-color: #185FA5; color: #0C447C; background: #E6F1FB; }
+    #msg-inp { flex: 1; font-size: 13.5px; padding: 9px 12px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-secondary); color: var(--color-text-primary); resize: none; min-height: 38px; max-height: 100px; font-family: var(--font-sans); line-height: 1.5; outline: none; }
+    #msg-inp:focus { border-color: var(--color-border-primary); background: var(--color-background-primary); }
+    #snd-btn { padding: 9px 15px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; flex-shrink: 0; font-family: var(--font-sans); transition: all .15s; }
+    #snd-btn:hover { background: var(--color-background-secondary); }
+    /* ── file message attachments ── */
+    .fma { margin-top: 7px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .fmc { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); font-size: 12px; color: var(--color-text-secondary); }
+    /* ── typing indicator ── */
+    .typing { display: flex; gap: 4px; align-items: center; padding: 10px 13px; }
+    .typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-secondary); animation: bnc 1.2s infinite; opacity: .4; }
+    .typing span:nth-child(2) { animation-delay: .2s; }
+    .typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes bnc { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-5px); opacity: .9; } }
+    /* ── activity panel ── */
+    #act-panel { width: 230px; border-left: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; background: var(--color-background-secondary); flex-shrink: 0; }
+    #act-hdr { padding: 12px 13px 9px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--color-border-tertiary); }
+    #act-title { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); letter-spacing: .06em; text-transform: uppercase; }
+    #act-cnt { font-size: 11px; color: var(--color-text-secondary); background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 20px; padding: 1px 8px; }
+    #act-filters { display: flex; gap: 4px; padding: 8px 9px; border-bottom: 0.5px solid var(--color-border-tertiary); flex-wrap: wrap; }
+    .fbtn { font-size: 11px; padding: 3px 8px; border: 0.5px solid var(--color-border-tertiary); border-radius: 20px; background: transparent; color: var(--color-text-secondary); cursor: pointer; font-family: var(--font-sans); transition: all .15s; }
+    .fbtn.active { background: var(--color-background-primary); border-color: var(--color-border-secondary); color: var(--color-text-primary); }
+    #act-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+    .aitem { padding: 9px 13px; border-bottom: 0.5px solid var(--color-border-tertiary); transition: background .12s; }
+    .aitem:last-child { border-bottom: none; }
+    .aitem:hover { background: var(--color-background-primary); }
+    .aitem.new { animation: fi .3s ease; }
+    @keyframes fi { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    .atop { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .atag { font-size: 10px; padding: 1px 7px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
+    .atag.script { background: #E6F1FB; color: #0C447C; } .atag.designer { background: #E1F5EE; color: #085041; } .atag.executor { background: #FAEEDA; color: #633806; } .atag.reporter { background: #FBEAF0; color: #72243E; } .atag.analyzer { background: #EEEDFE; color: #3C3489; } .atag.record { background: #FCEBEB; color: #A32D2D; } .atag.upload { background: #F1EFE8; color: #5F5E5A; } .atag.settings { background: #E6F1FB; color: #185FA5; }
+    .atime { font-size: 10px; color: var(--color-text-secondary); margin-left: auto; white-space: nowrap; }
+    .adesc { font-size: 12.5px; color: var(--color-text-primary); line-height: 1.4; }
+    .ameta { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+    #act-foot { padding: 9px 13px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 7px; }
+    .afbtn { flex: 1; font-size: 11.5px; padding: 6px 0; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-secondary); cursor: pointer; text-align: center; font-family: var(--font-sans); transition: all .15s; }
+    .afbtn:hover { background: var(--color-background-primary); color: var(--color-text-primary); }
+    #act-empty { padding: 24px 16px; text-align: center; color: var(--color-text-secondary); font-size: 12.5px; line-height: 1.6; }
+    ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: var(--color-border-secondary); border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <span class="page-logo">PE LifeCycle</span>
+    <span class="page-version">v2.0 — hybrid storage</span>
+    <a class="page-gh" href="https://github.com" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+
+  <div id="app">
+    <div id="top-bar">
+      <div id="app-title">AI Assisted Performance Testing</div>
+      <div id="tdiv"></div>
+      <div id="app-sub">PE LifeCycle</div>
+      <div id="conn-pill" class="disconnected" onclick="openSettings()">
+        <span class="pill-dot"></span>
+        <span id="conn-label">Not connected</span>
+      </div>
+      <button id="settings-btn" onclick="toggleSettings()">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" stroke="currentColor" stroke-width="1.3"/><path d="M13.3 8c0-.3 0-.6-.1-.9l1.6-1.3-1.5-2.6-1.9.8a5.4 5.4 0 0 0-1.6-.9L9.5 1.2h-3L6.2 3a5.4 5.4 0 0 0-1.6.9l-1.9-.8L1.2 5.7l1.6 1.3C2.7 7.4 2.7 7.7 2.7 8s0 .6.1.9L1.2 10.2l1.5 2.6 1.9-.8c.5.4 1 .7 1.6.9l.3 1.9h3l.3-1.9c.6-.2 1.1-.5 1.6-.9l1.9.8 1.5-2.6-1.6-1.3c.1-.3.1-.6.1-.9Z" stroke="currentColor" stroke-width="1.3"/></svg>
+        Settings
+      </button>
+    </div>
+
+    <div id="main">
+      <div id="sidebar">
+        <div id="sb-hdr">PE LifeCycle</div>
+        <div id="agent-list"></div>
+        <div id="sb-foot"><span id="phase-ind">Phase 1 of 5</span></div>
+      </div>
+
+      <div id="chat-area">
+        <div id="settings-panel">
+          <div class="sp-inner">
+            <div style="margin-bottom:14px">
+              <label class="sp-label">n8n webhook URL</label>
+              <div class="sp-row">
+                <input class="sp-input" id="webhook-inp" type="text" placeholder="https://your-n8n.com/webhook/pe-lifecycle" autocomplete="off" spellcheck="false"/>
+                <button class="sp-btn primary" onclick="saveAndTest()">Save &amp; test</button>
+              </div>
+              <div id="test-result"></div>
+            </div>
+            <hr class="sp-divider"/>
+            <div style="margin-bottom:14px">
+              <label class="sp-label">Session</label>
+              <div class="sp-meta-grid">
+                <div class="sp-meta-item"><span class="sp-meta-label">Conversation ID</span><span class="sp-meta-val" id="meta-conv-id">—</span></div>
+                <div class="sp-meta-item"><span class="sp-meta-label">Messages sent</span><span class="sp-meta-val" id="meta-msg-count">0</span></div>
+                <div class="sp-meta-item"><span class="sp-meta-label">Active agent</span><span class="sp-meta-val" id="meta-agent">—</span></div>
+                <div class="sp-meta-item"><span class="sp-meta-label">Activity entries</span><span class="sp-meta-val" id="meta-activity">0</span></div>
+              </div>
+            </div>
+            <hr class="sp-divider"/>
+            <div class="sp-row" style="gap:8px">
+              <button class="sp-btn" onclick="newSession()">New session</button>
+              <button class="sp-btn danger" onclick="clearAll()">Clear all data</button>
+              <button class="sp-btn" style="margin-left:auto" onclick="toggleSettings()">Close</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="ch-hdr">
+          <div id="ch-dot"></div>
+          <div id="ch-name">Script Development</div>
+          <div id="ch-phase">— PE LifeCycle</div>
+          <div id="ch-step">Phase 1 of 5</div>
+        </div>
+        <div id="messages"></div>
+        <div id="upload-tray">
+          <div style="display:flex;align-items:center;gap:9px">
+            <span style="font-size:12px;color:var(--color-text-secondary);white-space:nowrap">Attach file:</span>
+            <div id="dz">
+              <span style="font-size:12.5px;color:var(--color-text-secondary)">Drop or click to browse</span>
+              <span style="font-size:11.5px;color:var(--color-text-secondary);margin-left:auto">.json .har .xml .jmx</span>
+            </div>
+            <input id="fi" type="file" accept=".json,.har,.xml,.txt,.csv,.jmx" multiple/>
+          </div>
+          <div id="chips"></div>
+        </div>
+        <div id="input-area">
+          <button id="att-btn" title="Attach file" onclick="toggleTray()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 8.5V11.5C14 12.6 13.1 13.5 12 13.5H4C2.9 13.5 2 12.6 2 11.5V4.5C2 3.4 2.9 2.5 4 2.5H7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M10 2.5H13.5M13.5 2.5V6M13.5 2.5L8.5 7.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <textarea id="msg-inp" rows="1" placeholder="Type a message..."></textarea>
+          <button id="snd-btn" onclick="sendMsg(document.getElementById('msg-inp').value.trim())">Send ↗</button>
+        </div>
+      </div>
+
+      <div id="act-panel">
+        <div id="act-hdr"><span id="act-title">Activity log</span><span id="act-cnt">0</span></div>
+        <div id="act-filters">
+          <button class="fbtn active" data-f="all">All</button>
+          <button class="fbtn" data-f="record">Record</button>
+          <button class="fbtn" data-f="upload">Upload</button>
+          <button class="fbtn" data-f="script">Script</button>
+          <button class="fbtn" data-f="settings">Config</button>
+        </div>
+        <div id="act-list"><div id="act-empty">No activity yet.<br>Start a conversation to track changes.</div></div>
+        <div id="act-foot">
+          <button class="afbtn" onclick="exportLog()">Export log</button>
+          <button class="afbtn" onclick="clearLog()">Clear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const AGENTS=[{id:'script',name:'Script Development',sub:'JMeter scripts',color:'#185FA5',agent:'agent_1',tag:'script',phase:1,upload:true},{id:'designer',name:'Test Designer',sub:'Scenario design',color:'#0F6E56',agent:'agent_2',tag:'designer',phase:2,upload:false},{id:'executor',name:'Executor',sub:'Run & monitor',color:'#854F0B',agent:'agent_3',tag:'executor',phase:3,upload:false},{id:'reporter',name:'Report Generator',sub:'Results & reports',color:'#993556',agent:'agent_4',tag:'reporter',phase:4,upload:false},{id:'analyzer',name:'Analyzer',sub:'Insights & compare',color:'#3C3489',agent:'agent_5',tag:'analyzer',phase:5,upload:false}];
+    const WELCOMES={agent_1:{text:"Hello! I'm the Script Development assistant.\n\nFor the most accurate JMeter script with automatic correlation, I recommend recording your UI flow twice — comparing two recordings reveals dynamic values like session tokens and CSRF tokens.\n\nHow would you like to proceed?",actions:["Record UI flow (recommended)","Upload Postman collection","Upload HAR file","Generate from scratch"]},agent_2:{text:"Hi! I'm the Test Designer in the PE LifeCycle.\n\nI can help you design comprehensive performance test scenarios.\n\nWhat would you like to do?",actions:["Design a load test","Design a stress test","Design a spike test","Review scenarios"]},agent_3:{text:"Hello! I'm the Executor.\n\nI can kick off test runs and provide real-time metrics as tests execute.\n\nWhat would you like to do?",actions:["Execute a scenario","Check execution status","View real-time metrics","Stop a running test"]},agent_4:{text:"Hi! I'm the Report Generator.\n\nI consolidate results and prepare detailed performance reports including metrics and test artifacts.\n\nWhat would you like to do?",actions:["Generate test report","Add test metadata","Export report","View historical results"]},agent_5:{text:"Hello! I'm the Analyzer.\n\nI analyze test data, surface insights, and compare results across runs.\n\nWhat would you like to do?",actions:["Analyze latest results","Get recommendations","Compare two test runs","View performance trends"]}};
+    const DEMOS={agent_1:{r:"Got it! To get started, could you share the target application URL and the main user flows to test?",a:["Set target URL","Record UI flow","Upload collection","Move to Designer"],ch:["Script development session started"]},agent_2:{r:"Designing your scenario. What load level are you targeting?",a:["50 users — light","200 users — medium","500 users — heavy","Custom config"],ch:["Scenario design initiated"]},agent_3:{r:"Test queued. I'll start and stream metrics in real time.",a:["View metrics","Check errors","Stop test","Move to Reporter"],ch:["Execution session started"]},agent_4:{r:"Collecting results. Metrics are consolidating now.",a:["Generate report","Add metadata","Export PDF","Move to Analyzer"],ch:["Report generation started"]},agent_5:{r:"Analyzing the test data. Surfacing insights now.",a:["View insights","Compare runs","Get recommendations","New test cycle"],ch:["Analysis session started"]}};
+
+    let cur=AGENTS[0],convId='conv_'+Date.now(),msgHist={},actLog=[],actFilter='all',pendFiles=[],harSlots=[null,null],settingsOpen=false;
+    let webhookUrl=localStorage.getItem('pe_webhook_url')||'';
+    AGENTS.forEach(a=>msgHist[a.agent]=[]);
+
+    function ts(){return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+    function ext(n){const p=n.lastIndexOf('.');return p>=0?n.slice(p+1).toLowerCase():'file'}
+    function cico(e){if(e==='json')return'cj';if(e==='har')return'ch';if(e==='xml'||e==='jmx')return'cx';if(e==='txt'||e==='csv')return'ct';return'co'}
+    function fsz(b){if(b<1024)return b+' B';if(b<1048576)return Math.round(b/1024)+' KB';return(b/1048576).toFixed(1)+' MB'}
+
+    function setConn(state,label){const p=document.getElementById('conn-pill');p.className='';p.classList.add(state);document.getElementById('conn-label').textContent=label}
+    function updateMeta(){document.getElementById('meta-conv-id').textContent=convId.replace('conv_','');const t=Object.values(msgHist).reduce((s,h)=>s+h.filter(m=>m.role==='user').length,0);document.getElementById('meta-msg-count').textContent=t;document.getElementById('meta-agent').textContent=cur.name.split(' ')[0];document.getElementById('meta-activity').textContent=actLog.length}
+    function toggleSettings(){settingsOpen=!settingsOpen;document.getElementById('settings-panel').classList.toggle('open',settingsOpen);document.getElementById('settings-btn').classList.toggle('active',settingsOpen);if(settingsOpen){document.getElementById('webhook-inp').value=webhookUrl;updateMeta()}}
+    function openSettings(){if(!settingsOpen)toggleSettings()}
+
+    async function saveAndTest(){
+      const url=document.getElementById('webhook-inp').value.trim();
+      const res=document.getElementById('test-result');
+      if(!url){res.style.display='block';res.className='testing';res.textContent='Please enter a webhook URL.';return}
+      webhookUrl=url;localStorage.setItem('pe_webhook_url',url);
+      res.style.display='block';res.className='testing';res.textContent='Testing connection...';setConn('testing','Testing...');
+      log('settings','Settings','Webhook URL saved',url.length>50?url.slice(0,50)+'…':url);
+      try{
+        const ctrl=new AbortController();const tid=setTimeout(()=>ctrl.abort(),8000);
+        const resp=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id:'ping',agent:'agent_1',message:'ping',history:[],timestamp:new Date().toISOString(),_ping:true}),signal:ctrl.signal});
+        clearTimeout(tid);
+        if(resp.ok||resp.status===200){res.className='ok';res.textContent='Connection successful — HTTP '+resp.status+'. Ready to use.';setConn('connected','Connected');log('settings','Settings','Connection test passed','HTTP '+resp.status)}
+        else{res.className='err';res.textContent='n8n returned HTTP '+resp.status+'. Check the workflow is active and path is correct.';setConn('disconnected','Error '+resp.status);log('settings','Settings','Connection test failed','HTTP '+resp.status)}
+      }catch(e){
+        if(e.name==='AbortError'){res.className='err';res.textContent='Request timed out (8s). Is the n8n instance reachable from this browser?'}
+        else{res.className='err';res.textContent='Could not reach webhook: '+e.message}
+        setConn('disconnected','Unreachable');log('settings','Settings','Connection test failed',e.message)
+      }
+      updateMeta()
+    }
+
+    function newSession(){convId='conv_'+Date.now();AGENTS.forEach(a=>msgHist[a.agent]=[]);harSlots=[null,null];pendFiles=[];renderMsgs();addMsg(cur.agent,WELCOMES[cur.agent].text,WELCOMES[cur.agent].actions);log('settings','Settings','New session started',convId);updateMeta()}
+    function clearAll(){actLog=[];newSession();renderAct()}
+    function log(tag,an,desc,meta,ft){actLog.unshift({id:Date.now()+Math.random(),tag:ft||tag,agentName:an,desc,meta:(meta||'').length>45?(meta||'').slice(0,45)+'…':(meta||''),time:ts(),isNew:true});renderAct();updateMeta();setTimeout(()=>actLog.forEach(a=>a.isNew=false),600)}
+
+    function renderAct(){
+      const list=document.getElementById('act-list');
+      const f=actFilter==='all'?actLog:actLog.filter(a=>a.tag===actFilter);
+      document.getElementById('act-cnt').textContent=actLog.length;
+      if(!f.length){list.innerHTML='<div id="act-empty">'+(actLog.length===0?'No activity yet.<br>Start a conversation to track changes.':'No entries for this filter.')+'</div>';return}
+      list.innerHTML='';
+      f.forEach(item=>{const d=document.createElement('div');d.className='aitem'+(item.isNew?' new':'');const lbl=item.tag==='record'?'Record':item.tag==='upload'?'Upload':item.tag==='settings'?'Config':item.agentName.split(' ')[0];d.innerHTML=`<div class="atop"><span class="atag ${item.tag}">${lbl}</span><span class="atime">${item.time}</span></div><div class="adesc">${item.desc}</div><div class="ameta">${item.meta}</div>`;list.appendChild(d)})
+    }
+
+    function harStatus(){return harSlots[0]&&harSlots[1]?'ready':harSlots[0]?'run2':'idle'}
+    function buildRecCard(){
+      const st=harStatus();const bm={idle:{cls:'idle',txt:'Not started'},run2:{cls:'run2',txt:'Awaiting recording 2'},ready:{cls:'ready',txt:'Both recordings ready'}}[st];
+      const steps=[{n:1,title:'Open DevTools',desc:'Press F12 → Network tab. Clear entries. Keep open.',done:!!harSlots[0]},{n:2,title:'Complete UI flow — run 1',desc:'Navigate full flow: login, all features, logout.',done:!!harSlots[0]},{n:3,title:'Export HAR — recording 1',desc:'Right-click Network → "Save all as HAR". Upload below.',done:!!harSlots[0]},{n:4,title:'Clear & repeat the flow',desc:'Clear Network tab then repeat the exact same flow.',done:!!harSlots[1]},{n:5,title:'Export HAR — recording 2',desc:'Export second HAR the same way.',done:!!harSlots[1]}];
+      const wrap=document.createElement('div');wrap.className='rec-card';wrap.id='rec-card';
+      wrap.innerHTML=`<div class="rec-card-hdr"><span class="rec-card-title">UI flow recording — dual HAR capture</span><span class="rbadge ${bm.cls}">${bm.txt}</span></div>`;
+      const instr=document.createElement('div');instr.className='rec-instructions';steps.forEach(s=>{const row=document.createElement('div');row.className='rec-inst-row';row.innerHTML=`<div class="rec-inst-num${s.done?' done':''}">${s.done?'✓':s.n}</div><div><div class="rec-inst-text">${s.title}</div><div class="rec-inst-hint">${s.desc}</div></div>`;instr.appendChild(row)});wrap.appendChild(instr);
+      const slots=document.createElement('div');slots.className='rec-slots';
+      [0,1].forEach(i=>{const slot=document.createElement('div');slot.className='har-slot'+(harSlots[i]?' filled':'');slot.dataset.slot=i;if(harSlots[i]){slot.innerHTML=`<div class="hs-label filled">Recording ${i+1}</div><div class="hs-filename">${harSlots[i].name}</div><div class="hs-meta">${fsz(harSlots[i].size)}</div><button class="hs-remove" data-si="${i}">Remove</button>`}else{const ok=i===0||(i===1&&!!harSlots[0]);slot.innerHTML=`<div class="hs-label">Recording ${i+1}</div><div class="hs-empty">${ok?'Click to upload .har':'Complete recording 1 first'}</div>`;if(ok){slot.onclick=()=>pickHar(i);slot.addEventListener('dragover',e=>{e.preventDefault();slot.classList.add('active-drop')});slot.addEventListener('dragleave',()=>slot.classList.remove('active-drop'));slot.addEventListener('drop',e=>{e.preventDefault();slot.classList.remove('active-drop');const f=e.dataTransfer.files[0];if(f)setHar(i,f)})}}slots.appendChild(slot)});wrap.appendChild(slots);
+      const acts=document.createElement('div');acts.className='rec-actions';const ready=!!(harSlots[0]&&harSlots[1]);acts.innerHTML=`<button class="rec-go-btn" id="rec-go" ${ready?'':'disabled'}>Analyze &amp; generate script</button><span class="rec-hint">${ready?'Both recordings ready — click to identify dynamic values and build the JMeter script.':'Upload both HAR recordings to enable analysis.'}</span>`;wrap.appendChild(acts);
+      wrap.querySelectorAll('.hs-remove').forEach(btn=>{btn.onclick=e=>{e.stopPropagation();harSlots[parseInt(btn.dataset.si)]=null;refreshRecCard()}});
+      const goBtn=wrap.querySelector('#rec-go');if(goBtn&&ready)goBtn.onclick=()=>runHarAnalysis();
+      return wrap
+    }
+    function refreshRecCard(){const e=document.getElementById('rec-card');if(e)e.replaceWith(buildRecCard())}
+    function pickHar(i){const inp=document.createElement('input');inp.type='file';inp.accept='.har';inp.onchange=e=>{if(e.target.files[0])setHar(i,e.target.files[0])};inp.click()}
+    function setHar(idx,file){if(ext(file.name)!=='har')return;harSlots[idx]=file;log('record','Script Development',`HAR recording ${idx+1} uploaded: ${file.name}`,fsz(file.size));refreshRecCard()}
+    function runHarAnalysis(){const text=`Analyzing both HAR recordings: ${harSlots[0].name} and ${harSlots[1].name}`;msgHist['agent_1'].push({role:'user',text});renderMsgs();showTyping();log('record','Script Development','Dual HAR analysis started',harSlots[0].name+' + '+harSlots[1].name);doRequest('agent_1',text,[harSlots[0],harSlots[1]])}
+
+    function renderSidebar(){const list=document.getElementById('agent-list');list.innerHTML='';AGENTS.forEach(a=>{const btn=document.createElement('button');btn.className='abtn'+(a.id===cur.id?' active':'');btn.innerHTML=`<span class="adot" style="background:${a.color}"></span><div><div class="albl">${a.name}${a.upload?'<span style="font-size:10.5px;color:var(--color-text-secondary);margin-left:3px">+ upload</span>':''}</div><div class="asub">${a.sub}</div></div>`;btn.onclick=()=>switchAgent(a);list.appendChild(btn)})}
+    function switchAgent(a){cur=a;document.getElementById('ch-name').textContent=a.name;document.getElementById('ch-dot').style.background=a.color;document.getElementById('ch-step').textContent=`Phase ${a.phase} of 5`;document.getElementById('phase-ind').textContent=`Phase ${a.phase} of 5`;const tray=document.getElementById('upload-tray');if(a.upload)tray.classList.add('vis');else{tray.classList.remove('vis');pendFiles=[];renderChips()}renderSidebar();renderMsgs();if(!msgHist[a.agent].length)addMsg(a.agent,WELCOMES[a.agent].text,WELCOMES[a.agent].actions);if(settingsOpen)updateMeta()}
+
+    function renderMsgs(){const c=document.getElementById('messages');c.innerHTML='';msgHist[cur.agent].forEach(m=>{const div=document.createElement('div');div.className='msg '+m.role;if(m.role==='agent'){div.innerHTML=`<div class="msender">${cur.name} — PE LifeCycle</div><div class="mbubble">${m.text.replace(/\n/g,'<br>')}</div>`;if(m.actions&&m.actions.length){const qa=document.createElement('div');qa.className='qas';m.actions.forEach(a=>{const b=document.createElement('button');b.className='qab';b.textContent=a;b.onclick=()=>{if(a==='Record UI flow (recommended)')injectRecCard(div);else sendMsg(a)};qa.appendChild(b)});div.appendChild(qa)}if(m.showRec)div.appendChild(buildRecCard())}else{div.innerHTML=`<div class="msender">You</div><div class="mbubble">${m.text}</div>`;if(m.files&&m.files.length){const bbl=div.querySelector('.mbubble');const fc=document.createElement('div');fc.className='fma';m.files.forEach(f=>{const e=ext(f.name);const ch=document.createElement('div');ch.className='fmc';ch.innerHTML=`<span class="cico ${cico(e)}" style="width:15px;height:15px">${e.toUpperCase().slice(0,3)}</span><span>${f.name}</span><span style="font-size:11px;color:var(--color-text-secondary)">${fsz(f.size)}</span>`;fc.appendChild(ch)});bbl.appendChild(fc)}}c.appendChild(div)});c.scrollTop=9999}
+    function injectRecCard(msgDiv){if(msgDiv.querySelector('#rec-card'))return;const last=msgHist['agent_1'].filter(m=>m.role==='agent').slice(-1)[0];if(last)last.showRec=true;msgDiv.appendChild(buildRecCard());log('record','Script Development','UI flow recording session started','Dual HAR capture initiated');document.getElementById('messages').scrollTop=9999}
+    function addMsg(agentId,text,actions,showRec){msgHist[agentId].push({role:'agent',text,actions:actions||[],showRec:!!showRec});if(cur.agent===agentId)renderMsgs()}
+    function showTyping(){const c=document.getElementById('messages');const d=document.createElement('div');d.id='typ';d.className='msg agent';d.innerHTML=`<div class="mbubble"><div class="typing"><span></span><span></span><span></span></div></div>`;c.appendChild(d);c.scrollTop=9999}
+    function removeTyping(){const t=document.getElementById('typ');if(t)t.remove()}
+
+    function renderChips(){const c=document.getElementById('chips');c.innerHTML='';pendFiles.forEach((f,i)=>{const e=ext(f.name);const d=document.createElement('div');d.className='chip';d.innerHTML=`<span class="cico ${cico(e)}" style="width:15px;height:15px">${e.toUpperCase().slice(0,3)}</span><span class="cname">${f.name}</span><span class="csz">${fsz(f.size)}</span><button class="crm" data-i="${i}">×</button>`;c.appendChild(d)});document.querySelectorAll('.crm').forEach(b=>b.onclick=e=>{pendFiles.splice(parseInt(e.target.dataset.i),1);renderChips();document.getElementById('att-btn').classList.toggle('hf',pendFiles.length>0)});document.getElementById('att-btn').classList.toggle('hf',pendFiles.length>0)}
+    function toggleTray(){if(cur.upload)document.getElementById('upload-tray').classList.toggle('vis')}
+
+    async function doRequest(agentId,text,files){
+      if(!webhookUrl){removeTyping();const d=DEMOS[agentId];addMsg(agentId,d.r,d.a);d.ch.forEach(c=>log(cur.tag,cur.name,c,text));return}
+      try{
+        let resp;
+        if(files&&files.length){const fd=new FormData();fd.append('payload',JSON.stringify({conversation_id:convId,agent:agentId,message:text,history:msgHist[agentId].slice(-10),timestamp:new Date().toISOString()}));files.forEach(f=>fd.append('files',f));resp=await fetch(webhookUrl,{method:'POST',body:fd})}
+        else{resp=await fetch(webhookUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation_id:convId,agent:agentId,message:text,history:msgHist[agentId].slice(-10),timestamp:new Date().toISOString()})})}
+        const data=await resp.json();removeTyping();setConn('connected','Connected');addMsg(agentId,data.response||'Response received.',data.next_actions||[]);if(data.changes)data.changes.forEach(c=>log(cur.tag,cur.name,c,text))
+      }catch(e){removeTyping();const d=DEMOS[agentId];addMsg(agentId,d.r,d.a);d.ch.forEach(c=>log(cur.tag,cur.name,c,text))}
+      if(settingsOpen)updateMeta()
+    }
+
+    async function sendMsg(text){
+      const fs=[...pendFiles];const t=text&&text.trim()?text:(fs.length?'Uploading '+fs.map(f=>f.name).join(', '):'');
+      if(!t)return;
+      if(!webhookUrl){openSettings();document.getElementById('test-result').style.display='block';document.getElementById('test-result').className='testing';document.getElementById('test-result').textContent='Enter your n8n webhook URL and click Save & test to connect.';return}
+      msgHist[cur.agent].push({role:'user',text:t,files:fs.length?fs.map(f=>({name:f.name,size:f.size})):undefined});renderMsgs();document.getElementById('msg-inp').value='';pendFiles=[];renderChips();showTyping();
+      if(fs.length)log('upload',cur.name,'File(s) uploaded: '+fs.map(f=>f.name).join(', '),t);
+      await doRequest(cur.agent,t,fs.length?fs:null)
+    }
+
+    document.getElementById('msg-inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg(e.target.value.trim())}});
+    document.getElementById('dz').onclick=()=>document.getElementById('fi').click();
+    document.getElementById('fi').onchange=e=>{Array.from(e.target.files).forEach(f=>{if(!pendFiles.find(p=>p.name===f.name))pendFiles.push(f)});renderChips();e.target.value=''};
+    const dz=document.getElementById('dz');dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});dz.addEventListener('dragleave',()=>dz.classList.remove('over'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');Array.from(e.dataTransfer.files).forEach(f=>{if(!pendFiles.find(p=>p.name===f.name))pendFiles.push(f)});renderChips()});
+    document.querySelectorAll('.fbtn').forEach(btn=>{btn.onclick=()=>{actFilter=btn.dataset.f;document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderAct()}});
+    function clearLog(){actLog=[];renderAct();updateMeta()}
+    function exportLog(){const l=actLog.map(a=>`[${a.time}] [${a.tag.toUpperCase()}] [${a.agentName}] ${a.desc} — ${a.meta}`).join('\n');const b=new Blob([l||'No activity.'],{type:'text/plain'});const u=URL.createObjectURL(b);const lk=document.createElement('a');lk.href=u;lk.download='pe-lifecycle-log.txt';lk.click();URL.revokeObjectURL(u)}
+
+    if(webhookUrl)setConn('connected','Connected');else setConn('disconnected','Not connected');
+    switchAgent(AGENTS[0]);
+  </script>
+</body>
+</html>
